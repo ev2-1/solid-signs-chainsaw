@@ -1,0 +1,3 @@
+2 10 -5@hub: [text] - join server -\notherserver\n[%s/10]\n
+2 10 -5@hub: [dyn:pcnt] otherserver
+
