@@ -2,131 +2,112 @@ package main
 
 import (
 	proxy "github.com/HimbeerserverDE/mt-multiserver-proxy"
-	//	signLib "github.com/ev2-1/mt-multiserver-signs"
+	signLib "github.com/ev2-1/mt-multiserver-signs"
 
 	"github.com/anon55555/mt"
 	//"strings"
 	"sync"
-	"time"
+	"fmt"
 )
 
-var onlinePlayers map[string][]*proxy.ClientConn
-var onlinePlayersLastUpdate time.Time
-var onlinePlayersMu sync.RWMutex
+var readyClients = make(map[string]bool)
 
-func updateOnlinePlayers() {
-	onlinePlayersMu.Lock()
-	defer onlinePlayersMu.Unlock()
-
-	onlinePlayers = make(map[string][]*proxy.ClientConn)
-
-	for clt := range proxy.Clts() {
-		onlinePlayers[clt.ServerName()] = append(onlinePlayers[clt.ServerName()], clt)
+func aoid(cc *proxy.ClientConn) mt.AOID {
+	_, a := cc.GetFreeAOID()
+	if AOIDs[cc.Name()] == nil {
+		AOIDs[cc.Name()] = make(map[mt.AOID]bool)
 	}
 
-	onlinePlayersLastUpdate = time.Now()
-}
-
-func playersOnSrv(srv string) int {
-	onlinePlayersMu.RLock()
-	defer onlinePlayersMu.RUnlock()
-
-	return len(onlinePlayers[srv])
+	AOIDs[cc.Name()][a] = true
+	return a
 }
 
 type SignPos struct {
-	Pos    [3]int16
-	wall   bool
-	Server string
+	Pos      [3]int16
+	Wall     bool
+	Rotation signLib.Rotate
+	Server   string
 }
 
 type Sign struct {
 	Pos   *SignPos
-	found bool
+	aoid  mt.AOID
 
-	Text string
+	Text  string
+	Color string
 	Dyn  []DynContent
 
-	cachedTexture mt.Texture
+	cachedText string
+	changed bool
 }
 
-var signs []*Sign
-var signsID = make(map[mt.AOID]*Sign)
+var signs = make(map[string][]*Sign)
 var signsMu sync.RWMutex
 
 func RegisterSign(ps *Sign) {
 	signsMu.Lock()
 	defer signsMu.Unlock()
 
-	signs = append(signs, ps)
+	_, ps.aoid = proxy.GetServerAOId(ps.Pos.Server)
+
+	signs[ps.Pos.Server] = append(signs[ps.Pos.Server], ps)
+}
+
+func updateSignText() {
+	signsMu.Lock()
+	defer signsMu.Unlock()
+
+	for _, srv := range signs {
+		for _, s := range srv {
+			var dyn []any
+			for _, d := range s.Dyn {
+				dyn = append(dyn, d.Evaluate(s.Text, s.Pos))
+			}	
+
+			text := fmt.Sprintf(s.Text, dyn...)
+
+			s.changed = !(text == s.cachedText)
+			if s.changed {
+				s.cachedText = text
+			}
+		}
+	}
 }
 
 func updateSigns() {
-	/*	sign := signLib.Sign()
-		sign.Textures[0] = signLib.GenerateSignTexture("test", true, "black")
-
-		for c := range proxy.Clts() {
-			c.SendCmd(&mt.ToCltAORmAdd{
-				Add: []mt.AOAdd{
-					mt.AOAdd{
-						ID: 2564,
-						InitData: mt.AOInitData{
-							ID:  2564,
-							Pos: mt.Pos{1.0, 10.0 - 4.0},
-
-							HP: 0,
-							Msgs: []mt.AOMsg{
-								&mt.AOCmdProps{
-									Props: sign,
-								},
-							},
-						},
-					},
-				},
-			})
-		}*/
-}
-
-/*func updateSigns() {
-	signsMu.Lock()
-	for _, sign := range signs {
-		sign.cachedTexture = ""
-
-		// resolve dyn content:
-		var dyn []any
-		for _, d := range sign.Dyn {
-			dyn = append(dyn, d.Evaluate(sign.Text, sign.Pos))
-		}
-
-		sign.cachedTexture = signLib.GenerateSignTexture(fmt.Sprintf(sign.Text, dyn...), sign.Pos.wall, "black")
-	}
-	signsMu.Unlock()
-
+	updateSignText()
+	
 	signsMu.RLock()
 	defer signsMu.RUnlock()
-	for clt := range proxy.Clts() {
-		s := clt.ServerName()
-		var msgs []mt.IDAOMsg
 
-		for id, sign := range signsID {
-			if s == sign.Pos.Server {
-				msgs = append(msgs, mt.IDAOMsg{
-					ID: id,
-					Msg: &mt.AOCmdTextureMod{
-						Mod: "^" + sign.cachedTexture,
-					},
+	sendCache := make(map[string][]mt.IDAOMsg)
+
+	for srv, signs := range signs {
+		for _, s := range signs {
+			if s.changed {
+				sendCache[srv] = append(sendCache[srv], mt.IDAOMsg{
+					ID: s.aoid,
+					Msg: signLib.GenerateTextureAOMod(s.cachedText, s.Pos.Wall, s.Color),
 				})
 			}
 		}
+	}
 
-		if len(msgs) != 0 {
+	for clt := range proxy.Clts() {
+		if !readyClients[clt.Name()] {
+			break
+		}
+	
+		srv := clt.ServerName()
+	
+		if len(sendCache[srv]) != 0 {
 			clt.SendCmd(&mt.ToCltAOMsgs{
-				Msgs: msgs,
+				Msgs: sendCache[srv],
 			})
 		}
 	}
 }
-*/
+
 
 func toIntPos(pos mt.Pos) (p [3]int16) {
 	for i := range p {
