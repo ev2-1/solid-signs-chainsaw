@@ -1,0 +1,14 @@
+# an example signs list file
+# documentation in `signlist.md`
+pos 2 10 -5@hub wall South
+text Other Server\n|    [%s/10]   |
+color black
+#                 len padding
+dyn Padding:prepend,2,0,PlayerCnt:otherserver
+end
+
+pos 2 9 -5@hub notWall South67_5
+text Other Server\n|    [%s/10]   |
+color black
+dyn Padding:prepend,2,0,PlayerCnt:otherserver
+end

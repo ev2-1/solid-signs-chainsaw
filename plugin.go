@@ -2,12 +2,15 @@ package main
 
 import (
 	proxy "github.com/HimbeerserverDE/mt-multiserver-proxy"
-	signLib "github.com/ev2-1/mt-multiserver-signs"
 
+	"github.com/ev2-1/mt-multiserver-sign-templates"
+	"github.com/ev2-1/mt-multiserver-signs"
 	"github.com/anon55555/mt"
 	"io"
+	"os"
 	"time"
 	"fmt"
+	"bufio"
 )
 
 var thatSign = [3]int16{2, 10, -5}
@@ -19,8 +22,20 @@ var signsStrings = []string{"mcl_signs:wall_sign", "mcl_signs:standing_sign22_5"
 var AOIDs = make(map[string]map[mt.AOID]bool)
 
 func init() {
-	go signLib.LoadCharMap() // download charmap
-	signLib.Maths()
+	go signs.LoadCharMap() // download charmap
+	signs.Maths()
+
+	template := signTemplates.GetTemplate(signTemplates.ServerPlayerCnt)
+	err, signT := template(signs.SignPos{
+		Pos:  [3]int16{0, 10, 0},
+		Wall: true,
+		Rotation: signs.North,
+		Server: "hub",
+	}, "otherserver")
+	if err != nil {
+		fmt.Println("[ERROR], cant create template thing", err)
+	}
+	signs.RegisterSign(signT)
 
 	// get online players every second
 	go func() {
@@ -30,26 +45,37 @@ func init() {
 		}
 	}()
 
-	RegisterSign(&Sign{
-		Pos: &SignPos{
+	f, err := os.Open("./p.l")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "err: %v\n", err)
+		os.Exit(0)
+	}
+
+	for _, sign := range signs.ParseScanner(bufio.NewScanner(f)) {
+		fmt.Println("sign", sign.Text)
+		signs.RegisterSign(sign)
+	}
+
+	/*signs.RegisterSign(&signs.Sign{
+		Pos: &signs.SignPos{
 			Pos:    [3]int16{2, 10, -5},
 			Server: "hub",
 			Wall: true,
-			Rotation: signLib.South,
+			Rotation: signs.South,
 		},
-		Text: "Other Server\n|[%s/10]|",
+		Text: "Other Server\n|    [%s/10]   |",
 		Color: "black",
-		Dyn: []DynContent{
-			&Padding{
+		Dyn: []signs.DynContent{
+			&signs.Padding{
 				Prepend: true,
 				Length:  2,
 				Filler:  '0',
-				Content: &PlayerCnt{
+				Content: &signs.PlayerCnt{
 					Srv: "otherserver",
 				},
 			},
 		},
-	})
+	})*/
 
 	proxy.RegisterChatCmd(proxy.ChatCmd{
 		Name:        "signstick",
@@ -58,7 +84,7 @@ func init() {
 		Usage:       "no",
 		TelnetUsage: "nada",
 		Handler: func(cc *proxy.ClientConn, _ io.Writer, args ...string) string {
-			updateSigns()
+			signs.Update()
 
 			return ""
 		},
@@ -71,26 +97,9 @@ func init() {
 		Usage:       "no",
 		TelnetUsage: "nada",
 		Handler: func(cc *proxy.ClientConn, _ io.Writer, args ...string) string {
-			updateSignText()
-
-			signsMu.RLock()
-			defer signsMu.RUnlock()
-
-			add := []mt.AOAdd{}
-
-			for _, s := range signs[cc.ServerName()] {
-				add = append(add, signLib.GenerateSignAOAdd(s.cachedText, s.Color, s.Pos.Pos, s.Pos.Rotation, s.Pos.Wall, s.aoid-1))
-			}
-
-			if len(add) != 0 {
-				cc.SendCmd(&mt.ToCltAORmAdd{
-					Add: add,
-				})
-			}
-		
-			readyClients[cc.Name()] = true
-
-			return fmt.Sprintf("initialized %d signs", len(add))
+			signs.Ready(cc)
+			
+			return ""
 		},
 	})
 
@@ -122,7 +131,10 @@ func init() {
 		},
 	})
 
+	/*
 	onDig := func(cc *proxy.ClientConn, cmd *mt.ToSrvInteract) bool {
+		cc.Log("<-", fmt.Sprintf("action %s", cmd.Action.String()))
+	
 		switch c := cmd.Pointed.(type) {
 		case *mt.PointedNode:
 			if c.Under == thatSign {
@@ -142,4 +154,5 @@ func init() {
 			OnDig: onDig,
 		})
 	}
+	*/
 }

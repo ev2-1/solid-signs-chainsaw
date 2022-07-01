@@ -4,5 +4,8 @@ github.com/HimbeerserverDE/srp v0.0.0 h1:Iy2GIF7DJphXXO9NjncLEBO6VsZd8Yhrlxl/qTr
 github.com/HimbeerserverDE/srp v0.0.0/go.mod h1:pxNH8S2nh4n2DWE0ToX5GnnDr/uEAuaAhJsCpkDLIWw=
 github.com/anon55555/mt v0.0.0-20210919124550-bcc58cb3048f h1:tZU8VPYLyRrG3Lj9zBZvTVF5tUGciC/2aUIgTcU4WaM=
 github.com/anon55555/mt v0.0.0-20210919124550-bcc58cb3048f/go.mod h1:jH4ER+ahjl7H6TczzK+q4V9sXY++U2Geh6/vt3r4Xvs=
+github.com/ev2-1/mt-multiserver-playertools v0.0.0-20210919124550-bcc58cb3048f/go.mod h1:jH4ER+ahjl7H6TczzK+q4V9sXY++U2Geh6/vt3r4Xvs=
+github.com/ev2-1/mt-multiserver-sign-templates v0.0.0-20220701194337-68e3d03a8e87 h1:Xf9hCsb4F43O5AaBU9ON3dZaImARsIXAOCC+KmmAoAs=
+github.com/ev2-1/mt-multiserver-sign-templates v0.0.0-20220701194337-68e3d03a8e87/go.mod h1:Qk+zTAGBBmyw9m9l/fgWD3ppkicKxNQdbbS6/pI8JfU=
 github.com/ev2-1/mt-multiserver-signs v0.0.0-20220526161954-6665e77a6859 h1:cfcVDqUZKyl59QTimEZkc5DCplzMwqIHETju4IvXm8c=
 github.com/ev2-1/mt-multiserver-signs v0.0.0-20220526161954-6665e77a6859/go.mod h1:h8ovV+8qsSLnMtxbhcSKfQ5rKZjN0A/dOitkUrSv8fc=

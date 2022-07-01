@@ -1,5 +1,5 @@
-# signs
+# sign-tools
 
-signs, is a wip repo.
+tools for the sign-lib (https://github.com/ev2-1/mt-multiserver-signs)
 
-This is just to test and have it publicly available.
+signs, is a **WIP** repo.
