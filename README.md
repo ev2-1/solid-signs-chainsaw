@@ -1,5 +1,3 @@
-# sign-tools
+# formspecs
 
-tools for the sign-lib (https://github.com/ev2-1/mt-multiserver-signs)
-
-signs, is a **WIP** repo.
+- lemme form your spec -

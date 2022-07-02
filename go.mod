@@ -1,4 +1,4 @@
-module github.com/ev2-1/mt-multiserver-signs-tools
+module github.com/ev2-1/mt-multiserver-formspecs
 
 go 1.18
 
@@ -14,9 +14,5 @@ require (
 	github.com/ev2-1/mt-multiserver-signs v0.0.0-20220526161954-6665e77a6859 // indirect
 )
 
-replace github.com/ev2-1/mt-multiserver-signs => ../../libs/signs
-
 replace github.com/HimbeerserverDE/mt-multiserver-proxy => ../../proxy
-
 replace github.com/ev2-1/mt-multiserver-playertools => ../../libs/playertools
-replace github.com/ev2-1/mt-multiserver-sign-templates => ../../libs/signs.templates

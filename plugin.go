@@ -1,158 +1,159 @@
 package main
 
 import (
-	proxy "github.com/HimbeerserverDE/mt-multiserver-proxy"
-
-	"github.com/ev2-1/mt-multiserver-sign-templates"
-	"github.com/ev2-1/mt-multiserver-signs"
+	"github.com/HimbeerserverDE/mt-multiserver-proxy"
 	"github.com/anon55555/mt"
+
 	"io"
-	"os"
-	"time"
-	"fmt"
-	"bufio"
+	"strings"
 )
 
-var thatSign = [3]int16{2, 10, -5}
-var thatOtherSign = [3]int16{4, 10, -5}
+var (
+	testForm = Form{
+		Title: "testformtitle",
+		Name:  "testformname",
+		Fields: []Field{
+			&Passwd{
+				Name:  "testpassname",
+				Label: "testpasslable",
+				//CloseOnEnter: false, // TODO
+			},
+			&TextField{
+				Name:    "testtxtname",
+				Label:   "testtxtlable",
+				Default: "i like chess",
+			},
+			&TextArea{
+				Name:    "textareaname",
+				Label:   "textarealabel",
+				Default: "default_value",
 
-var signsStrings = []string{"mcl_signs:wall_sign", "mcl_signs:standing_sign22_5", "mcl_signs:standing_sign45", "mcl_signs:standing_sign67_5"}
-
-// AOIDs held by plugin
-var AOIDs = make(map[string]map[mt.AOID]bool)
-
-func init() {
-	go signs.LoadCharMap() // download charmap
-	signs.Maths()
-
-	template := signTemplates.GetTemplate(signTemplates.ServerPlayerCnt)
-	err, signT := template(signs.SignPos{
-		Pos:  [3]int16{0, 10, 0},
-		Wall: true,
-		Rotation: signs.North,
-		Server: "hub",
-	}, "otherserver")
-	if err != nil {
-		fmt.Println("[ERROR], cant create template thing", err)
-	}
-	signs.RegisterSign(signT)
-
-	// get online players every second
-	go func() {
-		for {
-			//		updateSigns()
-			time.Sleep(time.Second * 10)
-		}
-	}()
-
-	f, err := os.Open("./p.l")
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "err: %v\n", err)
-		os.Exit(0)
-	}
-
-	for _, sign := range signs.ParseScanner(bufio.NewScanner(f)) {
-		fmt.Println("sign", sign.Text)
-		signs.RegisterSign(sign)
-	}
-
-	/*signs.RegisterSign(&signs.Sign{
-		Pos: &signs.SignPos{
-			Pos:    [3]int16{2, 10, -5},
-			Server: "hub",
-			Wall: true,
-			Rotation: signs.South,
-		},
-		Text: "Other Server\n|    [%s/10]   |",
-		Color: "black",
-		Dyn: []signs.DynContent{
-			&signs.Padding{
-				Prepend: true,
-				Length:  2,
-				Filler:  '0',
-				Content: &signs.PlayerCnt{
-					Srv: "otherserver",
-				},
+				Size: Offset{10, 5},
 			},
 		},
-	})*/
+	}
+)
+
+func init() {
+	proxy.RegisterPacketHandler(&proxy.PacketHandler{
+		CltHandler: func(cc *proxy.ClientConn, pkt *mt.Pkt) bool {
+
+			return false
+		},
+		SrvHandler: func(sc *proxy.ServerConn, pkt *mt.Pkt) bool {
+			switch cmd := pkt.Cmd.(type) {
+			case *mt.ToCltShowFormspec:
+				sc.Log("->", cmd.Formspec)
+			}
+
+			return false
+		},
+	})
 
 	proxy.RegisterChatCmd(proxy.ChatCmd{
-		Name:        "signstick",
-		Perm:        "default",
-		Help:        "no",
-		Usage:       "no",
-		TelnetUsage: "nada",
+		Name: "showspec",
 		Handler: func(cc *proxy.ClientConn, _ io.Writer, args ...string) string {
-			signs.Update()
+			fs := strings.ReplaceAll(strings.Join(args[1:], " "), "\\n", "\n")
+
+			for clt := range proxy.Clts() {
+				if clt.Name() == args[0] {
+					cc.SendCmd(&mt.ToCltShowFormspec{
+						Formspec: fs,
+						Formname: "testspec",
+					})
+				}
+			}
+
+			return fs
+		},
+	})
+
+	// help menu but formspec
+	proxy.RegisterChatCmd(proxy.ChatCmd{
+		Name: "helpspec",
+		Help: "show help menu using formspecs",
+		Handler: func(cc *proxy.ClientConn, _ io.Writer, args ...string) (ret string) {
+			if len(args) == 0 && cc != nil {
+				// head
+				ret = "size[13,7.5]\n"
+				ret += "label[0,-0.1;Available commands: (see also: /help <cmd>)]\n"
+
+				// tablehead
+				ret += "tablecolumns[color;tree;text;text]\n"
+				// start of table body
+				ret += "table[0,0.5;12.8,4.8;list;"
+				ret += "#FFF,0,Command,Usage"
+
+				// sort chatcmds by plugin:
+				cmds := make(map[string][]proxy.ChatCmd)
+
+				for _, cmd := range proxy.ChatCmds() {
+					plugin := cmd.Plugin()
+
+					cmds[plugin] = append(cmds[plugin], cmd)
+				}
+
+				// generate list
+				for plugin, cmds := range cmds {
+					// each plugin name:
+					ret += ",#7AF,0," + plugin + ","
+
+					for _, cmd := range cmds {
+						ret += ",#7F7,1," + cmd.Name + "," + Escape(cmd.Usage)
+					}
+				}
+
+				// end of table
+				ret += ";0]\n"
+
+				// a box
+				ret += "box[0,5.5;12.8,1.5;#000]\n"
+				ret += "textarea[0.3,5.5;13.05,1.9;;;for more information, click on any entry in the list u stupid.\nclick twice if you dare to!]\n"
+
+				// a exit
+				ret += "button_exit[5,7;3,1;quit;Close (if u to dumb to press <ESC>)]\n"
+
+				cc.SendCmd(&mt.ToCltShowFormspec{
+					Formname: "help",
+					Formspec: ret,
+				})
+
+				return ""
+			}
+
+			return "not yet"
+		},
+	})
+
+	proxy.RegisterChatCmd(proxy.ChatCmd{
+		Name: "testform",
+		Help: "show the testform",
+		Handler: func(cc *proxy.ClientConn, _ io.Writer, args ...string) string {
+			cc.SendCmd(testForm.Formspec())
 
 			return ""
 		},
 	})
 
+	var box Logbox
+
 	proxy.RegisterChatCmd(proxy.ChatCmd{
-		Name:        "ready",
-		Perm:        "default",
-		Help:        "no",
-		Usage:       "no",
-		TelnetUsage: "nada",
-		Handler: func(cc *proxy.ClientConn, _ io.Writer, args ...string) string {
-			signs.Ready(cc)
-			
-			return ""
+		Name: "logbox",
+		Help: "show help menu using formspecs",
+		Handler: func(cc *proxy.ClientConn, _ io.Writer, args ...string) (ret string) {
+			box = NewLogbox(cc, "textbox")
+
+			return
 		},
 	})
 
 	proxy.RegisterChatCmd(proxy.ChatCmd{
-		Name:        "rmsigns",
-		Perm:        "default",
-		Help:        "no",
-		Usage:       "no",
-		TelnetUsage: "nada",
-		Handler: func(cc *proxy.ClientConn, _ io.Writer, args ...string) string {
-			if AOIDs[cc.Name()] == nil {
-				return "no!"
-			}
+		Name: "log2box",
+		Help: "show help menu using formspecs",
+		Handler: func(cc *proxy.ClientConn, _ io.Writer, args ...string) (ret string) {
+			box <- strings.Join(args, " ")
 
-			rm := []mt.AOID{}
-			for k := range AOIDs[cc.Name()] {
-				cc.FreeAOID(k)
-				delete(AOIDs[cc.Name()], k)
-				rm = append(rm, k)
-			}
-
-			AOIDs[cc.Name()] = nil
-
-			cc.SendCmd(&mt.ToCltAORmAdd{
-				Remove: rm,
-			})
-
-			return "aber hallo"
+			return
 		},
 	})
-
-	/*
-	onDig := func(cc *proxy.ClientConn, cmd *mt.ToSrvInteract) bool {
-		cc.Log("<-", fmt.Sprintf("action %s", cmd.Action.String()))
-	
-		switch c := cmd.Pointed.(type) {
-		case *mt.PointedNode:
-			if c.Under == thatSign {
-				cc.Hop("otherserver")
-			}
-			if c.Under == thatOtherSign {
-				cc.Hop("hub")
-			}
-		}
-
-		return false
-	}
-
-	for _, sign := range signsStrings {
-		proxy.RegisterNodeHandler(&proxy.NodeHandler{
-			Node:  sign,
-			OnDig: onDig,
-		})
-	}
-	*/
 }
